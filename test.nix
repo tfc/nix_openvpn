@@ -13,6 +13,11 @@ let
         remoteHost = "server";
         remoteName = "openvpn_server";
       };
+      client2 = import ./client.nix {
+        prefix = "openvpn_client2";
+        remoteHost = "server";
+        remoteName = "openvpn_server";
+      };
     };
 
     testScript = { nodes, ... }: ''
@@ -25,6 +30,12 @@ let
       $client1->succeed("sleep 1 && ifconfig tun0");
       $server->succeed("ping -c1 10.8.0.2");
       $client1->succeed("ping -c1 10.8.0.1");
+
+      $client2->start();
+      $client2->waitForUnit("openvpn-client.service");
+      $client2->succeed("sleep 1 && ifconfig tun0");
+      $server->succeed("ping -c1 10.8.0.3");
+      $client2->succeed("ping -c1 10.8.0.1");
     '';
   };
 in import "${pkgs.path}/nixos/tests/make-test.nix" f {}
