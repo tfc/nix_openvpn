@@ -18,6 +18,7 @@
       remote ${remoteHost} ${builtins.toString openvpnPort}
       remote-cert-tls server
 
+      # Fix this: The keys should not be in the store, of course.
       ca ${./pki/ca.crt}
       cert ${./pki/issued + "/${prefix}.crt"}
       key ${./pki/private + "/${prefix}.key"}
