@@ -8,7 +8,11 @@
 { pkgs, config, ... }:
 
 {
-  networking.firewall.allowedUDPPorts = [ openvpnPort ];
+  networking.firewall.allowedUDPPorts = [ 22 openvpnPort ];
+  networking.firewall.trustedInterfaces = [ "tun0" ];
+
+  nix.trustedUsers = [ "buildfarm" ];
+
   services.openvpn.servers.client = {
     config = ''
       client
@@ -23,5 +27,13 @@
       cert ${./pki/issued + "/${prefix}.crt"}
       key ${./pki/private + "/${prefix}.key"}
     '';
+  };
+  services.openssh.enable = true;
+
+  users.extraUsers.buildfarm = {
+    isNormalUser = true;
+    openssh.authorizedKeys.keys = [
+      (builtins.readFile (./. + "/ssh_keys/buildfarm.pub"))
+    ];
   };
 }

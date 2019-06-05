@@ -29,4 +29,26 @@
       keepalive 10 120
     '';
   };
+
+  nix.buildMachines = let
+    f = hostName: {
+      inherit hostName;
+      sshUser = "buildfarm";
+      sshKey = "/root/buildfarmkey";
+      system = "x86_64-linux";
+      maxJobs = 1;
+
+    };
+  in [
+    (f "10.8.0.2")
+    (f "20.8.0.3")
+  ];
+
+  nix.distributedBuilds = true;
+
+  programs.ssh.extraConfig = ''
+    Host 10.8.0.*
+      User buildfarm
+      IdentityFile /root/buildfarmkey
+  '';
 }
