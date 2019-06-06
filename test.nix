@@ -8,27 +8,34 @@ let
     pkgs.writeText "expr.nix" ''
       let b = builtins.storePath ${config.system.build.extraUtils}; in
       derivation {
-        name = "hostname-output";
+        name = "hostname-output-${foo}";
         system = builtins.currentSystem;
         PATH = "''${b}/bin";
         builder = "''${b}/bin/sh";
-        args = [ "-c" "echo ${foo}; cat /proc/sys/kernel/hostname > $out" ];
+        args = [ "-c" "cat /proc/sys/kernel/hostname > $out" ];
       }
     '';
+  clientArguments = prefix: {
+    remoteHost = "server";
+    remoteName = "openvpn_server";
+    vpnCAPath = ./pki/ca.crt;
+    vpnCertificatePath = ./pki/issued + "/${prefix}.crt";
+    vpnKeyfilePath = ./pki/private + "/${prefix}.key";
+    sshMasterPubKeyContent = builtins.readFile ./ssh_keys/buildfarm.pub;
+  };
   f = { pkgs, ...}: {
     name = "openvpn_test";
     nodes = {
-      server = import ./server.nix {};
-      client1 = import ./client.nix {
-        prefix = "openvpn_client1";
-        remoteHost = "server";
-        remoteName = "openvpn_server";
+      server = import ./server.nix {
+        vpnCAPath = ./pki/ca.crt;
+        vpnCertificatePath = ./pki/issued/openvpn_server.crt;
+        vpnKeyfilePath = ./pki/private/openvpn_server.key;
+        vpnDiffieHellmanFilePath = ./pki/dh.pem;
+        sshPrivateKeyPath = "/root/buildfarmkey";
+        buildSlaveHostnames = [ "10.8.0.2" "10.8.0.3" ];
       };
-      client2 = import ./client.nix {
-        prefix = "openvpn_client2";
-        remoteHost = "server";
-        remoteName = "openvpn_server";
-      };
+      client1 = import ./client.nix (clientArguments "openvpn_client1");
+      client2 = import ./client.nix (clientArguments "openvpn_client2");
     };
 
     testScript = { nodes, ... }: ''
@@ -39,7 +46,6 @@ let
 
       $client1->start();
       $client1->waitForUnit("openvpn-client.service");
-      $client1->waitForUnit("sshd.service");
 
       $client1->succeed("sleep 1 && ifconfig tun0");
       $server->succeed("ping -c1 10.8.0.2");

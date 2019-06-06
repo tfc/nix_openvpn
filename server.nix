@@ -1,5 +1,11 @@
 {
-  openvpnPort ? 1194
+  openvpnPort ? 1194,
+  vpnCertificatePath,
+  vpnCAPath,
+  vpnKeyfilePath,
+  vpnDiffieHellmanFilePath,
+  sshPrivateKeyPath,
+  buildSlaveHostnames
 }:
 
 { pkgs, config, ... }:
@@ -20,11 +26,10 @@
       ifconfig-pool-persist ipp.txt
       push "route 10.8.0.0 255.255.255.0"
 
-      # Fix this: The keys should not be in the store, of course.
-      ca ${./pki/ca.crt}
-      cert ${./pki/issued/openvpn_server.crt}
-      key ${./pki/private/openvpn_server.key}
-      dh ${./pki/dh.pem}
+      ca ${vpnCAPath}
+      cert ${vpnCertificatePath}
+      key ${vpnKeyfilePath}
+      dh ${vpnDiffieHellmanFilePath}
 
       keepalive 10 120
     '';
@@ -34,21 +39,18 @@
     f = hostName: {
       inherit hostName;
       sshUser = "buildfarm";
-      sshKey = "/root/buildfarmkey";
+      sshKey = sshPrivateKeyPath;
       system = "x86_64-linux";
       maxJobs = 1;
 
     };
-  in [
-    (f "10.8.0.2")
-    (f "20.8.0.3")
-  ];
+  in builtins.map f buildSlaveHostnames;
 
   nix.distributedBuilds = true;
 
   programs.ssh.extraConfig = ''
     Host 10.8.0.*
       User buildfarm
-      IdentityFile /root/buildfarmkey
+      IdentityFile ${sshPrivateKeyPath}
   '';
 }

@@ -1,8 +1,11 @@
 {
   openvpnPort ? 1194,
-  prefix,
   remoteHost,
-  remoteName
+  remoteName,
+  vpnCAPath,
+  vpnCertificatePath,
+  vpnKeyfilePath,
+  sshMasterPubKeyContent
 }:
 
 { pkgs, config, ... }:
@@ -22,18 +25,15 @@
       remote ${remoteHost} ${builtins.toString openvpnPort}
       remote-cert-tls server
 
-      # Fix this: The keys should not be in the store, of course.
-      ca ${./pki/ca.crt}
-      cert ${./pki/issued + "/${prefix}.crt"}
-      key ${./pki/private + "/${prefix}.key"}
+      ca ${vpnCAPath}
+      cert ${vpnCertificatePath}
+      key ${vpnKeyfilePath}
     '';
   };
   services.openssh.enable = true;
 
   users.extraUsers.buildfarm = {
     isNormalUser = true;
-    openssh.authorizedKeys.keys = [
-      (builtins.readFile (./. + "/ssh_keys/buildfarm.pub"))
-    ];
+    openssh.authorizedKeys.keys = [ sshMasterPubKeyContent ];
   };
 }
