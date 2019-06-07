@@ -25,3 +25,10 @@ ssh-keygen -t rsa -f ssh_keys/openvpn_server -q -N ""
 for client in $(cat ../clientlist.txt); do
   ssh-keygen -t rsa -f "ssh_keys/$client" -q -N ""
 done
+
+mkdir -p nixstore_keys
+for client in $(cat ../clientlist.txt); do
+  nix-store --generate-binary-cache-key "$client" \
+    "nixstore_keys/$client-priv.pem" \
+    "nixstore_keys/$client-pub.pem"
+done
