@@ -9,6 +9,7 @@ let
     deployment.targetEnv = "libvirtd";
     deployment.keys = {
       vpn-key = rootOnlyKey (../keys_certificates/pki/private + "/${prefix}.key");
+      ssh-private = rootOnlyKey (../keys_certificates/ssh_keys + "/${prefix}");
     };
   };
 in {
