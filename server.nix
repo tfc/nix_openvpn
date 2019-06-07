@@ -62,5 +62,6 @@ in {
     Host 10.8.0.*
       User buildfarm
       IdentityFile ${sshPrivateKeyPath}
+      ConnectTimeout 5
   '';
 }
