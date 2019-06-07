@@ -8,16 +8,16 @@ let
   clientConfig = prefix: { config, pkgs, ... }: {
     deployment.targetEnv = "libvirtd";
     deployment.keys = {
-      vpn-key = rootOnlyKey (./pki/private + "/${prefix}.key");
+      vpn-key = rootOnlyKey (../pki/private + "/${prefix}.key");
     };
   };
 in {
   server = { config, pkgs, ... }: {
     deployment.targetEnv = "libvirtd";
     deployment.keys = {
-      vpn-key = rootOnlyKey ./pki/private/openvpn_server.key;
-      dh-params = rootOnlyKey ./pki/dh.pem;
-      sshkey-buildfarm = rootOnlyKey ./ssh_keys/buildfarm;
+      vpn-key = rootOnlyKey ../pki/private/openvpn_server.key;
+      dh-params = rootOnlyKey ../pki/dh.pem;
+      sshkey-buildfarm = rootOnlyKey ../ssh_keys/buildfarm;
     };
   };
 

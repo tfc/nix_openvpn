@@ -32,7 +32,10 @@ let
         vpnKeyfilePath = ./pki/private/openvpn_server.key;
         vpnDiffieHellmanFilePath = ./pki/dh.pem;
         sshPrivateKeyPath = "/root/buildfarmkey";
-        buildSlaveHostnames = [ "10.8.0.2" "10.8.0.3" ];
+        buildSlaveNameIpPairs = [
+          { ip = "10.8.0.2"; name = "openvpn_client1"; }
+          { ip = "10.8.0.3"; name = "openvpn_client2"; }
+        ];
       };
       client1 = import ./client.nix (clientArguments "openvpn_client1");
       client2 = import ./client.nix (clientArguments "openvpn_client2");
