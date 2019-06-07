@@ -1,0 +1,4 @@
+V	290604073338Z		01	unknown	/CN=openvpn_server
+V	290604073338Z		02	unknown	/CN=openvpn_client1
+V	290604073338Z		03	unknown	/CN=openvpn_client2
+V	290604073338Z		04	unknown	/CN=openvpn_client3

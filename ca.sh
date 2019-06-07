@@ -3,12 +3,25 @@
 
 set -eu
 
+rm -rf keys_certificates
+mkdir keys_certificates
+
+pushd keys_certificates
+
 easyrsa init-pki
-easyrsa build-ca nopass
+
+easyrsa --batch --req-cn="Jonge" build-ca nopass
+
 easyrsa gen-dh
 easyrsa build-server-full openvpn_server nopass
-easyrsa build-client-full openvpn_client1 nopass
-easyrsa build-client-full openvpn_client2 nopass
+
+for client in $(cat ../clientlist.txt); do
+  easyrsa build-client-full "$client" nopass
+done
 
 mkdir -p ssh_keys
-ssh-keygen -t rsa -f ssh_keys/buildfarm -q -N ""
+ssh-keygen -t rsa -f ssh_keys/openvpn_server -q -N ""
+
+for client in $(cat ../clientlist.txt); do
+  ssh-keygen -t rsa -f "ssh_keys/$client" -q -N ""
+done
