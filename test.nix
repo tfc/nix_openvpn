@@ -18,20 +18,20 @@ let
   clientArguments = prefix: {
     remoteHost = "server";
     remoteName = "openvpn_server";
-    vpnCAPath = ./pki/ca.crt;
-    vpnCertificatePath = ./pki/issued + "/${prefix}.crt";
-    vpnKeyfilePath = ./pki/private + "/${prefix}.key";
-    sshMasterPubKeyContent = builtins.readFile ./ssh_keys/buildfarm.pub;
+    vpnCAPath = ./keys_certificates/pki/ca.crt;
+    vpnCertificatePath = ./keys_certificates/pki/issued + "/${prefix}.crt";
+    vpnKeyfilePath = ./keys_certificates/pki/private + "/${prefix}.key";
+    sshMasterPubKeyContent = builtins.readFile ./keys_certificates/ssh_keys/openvpn_server.pub;
   };
   f = { pkgs, ...}: {
     name = "openvpn_test";
     nodes = {
       server = import ./server.nix {
-        vpnCAPath = ./pki/ca.crt;
-        vpnCertificatePath = ./pki/issued/openvpn_server.crt;
-        vpnKeyfilePath = ./pki/private/openvpn_server.key;
-        vpnDiffieHellmanFilePath = ./pki/dh.pem;
-        sshPrivateKeyPath = "/root/buildfarmkey";
+        vpnCAPath = ./keys_certificates/pki/ca.crt;
+        vpnCertificatePath = ./keys_certificates/pki/issued/openvpn_server.crt;
+        vpnKeyfilePath = ./keys_certificates/pki/private/openvpn_server.key;
+        vpnDiffieHellmanFilePath = ./keys_certificates/pki/dh.pem;
+        sshPrivateKeyPath = "/root/openvpn_server";
         buildSlaveNameIpPairs = [
           { ip = "10.8.0.2"; name = "openvpn_client1"; }
           { ip = "10.8.0.3"; name = "openvpn_client2"; }
@@ -45,7 +45,7 @@ let
       $server->start();
       $server->waitForUnit("openvpn-server.service");
       $server->succeed("sleep 1 && ifconfig tun0");
-      $server->succeed("cp ${./. + "/ssh_keys/buildfarm"} /root/buildfarmkey && chmod 0400 /root/buildfarmkey");
+      $server->succeed("cp ${./. + "/keys_certificates/ssh_keys/openvpn_server"} /root/openvpn_server && chmod 0400 /root/openvpn_server");
 
       $client1->start();
       $client1->waitForUnit("openvpn-client.service");
