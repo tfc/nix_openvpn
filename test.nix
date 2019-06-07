@@ -22,6 +22,8 @@ let
     vpnCertificatePath = ./keys_certificates/pki/issued + "/${prefix}.crt";
     vpnKeyfilePath = ./keys_certificates/pki/private + "/${prefix}.key";
     sshMasterPubKeyContent = builtins.readFile ./keys_certificates/ssh_keys/openvpn_server.pub;
+    sshPrivateKeyPath = ./keys_certificates/ssh_keys + "/${prefix}";
+    sshPublicKeyPath = ./keys_certificates/ssh_keys + "/${prefix}.pub";
   };
   f = { pkgs, ...}: {
     name = "openvpn_test";
@@ -32,9 +34,9 @@ let
         vpnKeyfilePath = ./keys_certificates/pki/private/openvpn_server.key;
         vpnDiffieHellmanFilePath = ./keys_certificates/pki/dh.pem;
         sshPrivateKeyPath = "/root/openvpn_server";
-        buildSlaveNameIpPairs = [
-          { ip = "10.8.0.2"; name = "openvpn_client1"; }
-          { ip = "10.8.0.3"; name = "openvpn_client2"; }
+        buildSlaveInfo = [
+          { ip = "10.8.0.2"; name = "openvpn_client1"; pubkey = builtins.readFile ./keys_certificates/ssh_keys/openvpn_client1.pub; }
+          { ip = "10.8.0.3"; name = "openvpn_client2"; pubkey = builtins.readFile ./keys_certificates/ssh_keys/openvpn_client2.pub; }
         ];
       };
       client1 = import ./client.nix (clientArguments "openvpn_client1");
@@ -54,7 +56,6 @@ let
       $server->succeed("ping -c1 10.8.0.2");
       $client1->succeed("ping -c1 10.8.0.1");
 
-      $server->succeed("ssh -o StrictHostKeyChecking=no 10.8.0.2 nix-store --version");
       $server->succeed("nix ping-store --store ssh://10.8.0.2");
 
       $client2->start();
@@ -63,7 +64,6 @@ let
       $server->succeed("ping -c1 10.8.0.3");
       $client2->succeed("ping -c1 10.8.0.1");
 
-      $server->succeed("ssh -o StrictHostKeyChecking=no 10.8.0.3 nix-store --version");
       print($server->succeed("nix-build -j0 ${trivialHostnameDerivation nodes.server.config "foo"}"));
       $client1->block;
       print($server->succeed("nix-build -j0 ${trivialHostnameDerivation nodes.server.config "bar"}"));

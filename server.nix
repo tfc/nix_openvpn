@@ -5,14 +5,16 @@
   vpnKeyfilePath,
   vpnDiffieHellmanFilePath,
   sshPrivateKeyPath,
-  buildSlaveNameIpPairs
+  buildSlaveInfo
 }:
 
 { pkgs, config, ... }:
 
 let
   ippFile = pkgs.writeText "ipp.txt" (pkgs.lib.concatMapStringsSep "\n"
-    ({name, ip}: "${name},${ip}") buildSlaveNameIpPairs);
+    ({name, ip, ...}: "${name},${ip}") buildSlaveInfo);
+  knownHostsFile = pkgs.writeText "known_hosts" (pkgs.lib.concatMapStringsSep "\n"
+    ({pubkey, ip, ...}: "${ip} ${pubkey}") buildSlaveInfo);
 in {
   networking.firewall.allowedUDPPorts = [ openvpnPort ];
   services.openvpn.servers.server = {
@@ -41,7 +43,11 @@ in {
   systemd.services.openvpn-server.preStart = ''
     if [ ! -f /root/ipp.txt ]; then
       cp ${ippFile} /root/ipp.txt
-      #chmod 600 /root/ip.txt
+    fi
+
+    if [ ! -f /root/.ssh/known_hosts ]; then
+      mkdir -p /root/.ssh
+      cp ${knownHostsFile} /root/.ssh/known_hosts
     fi
   '';
 
@@ -54,7 +60,7 @@ in {
       maxJobs = 1;
 
     };
-  in builtins.map f buildSlaveNameIpPairs;
+  in builtins.map f buildSlaveInfo;
 
   nix.distributedBuilds = true;
 
