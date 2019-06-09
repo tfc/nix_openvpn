@@ -16,7 +16,45 @@ let
   knownHostsFile = pkgs.writeText "known_hosts" (pkgs.lib.concatMapStringsSep "\n"
     ({pubkey, ip, ...}: "${ip} ${pubkey}") buildSlaveInfo);
 in {
-  networking.firewall.allowedUDPPorts = [ openvpnPort ];
+  networking = {
+    firewall.allowedUDPPorts = [ openvpnPort ];
+    hosts = {
+      "10.8.0.2" = [ "openvpn_client1" ];
+    };
+  };
+
+  nix = {
+    buildMachines = let
+      f = { ip, ...}: {
+        hostName = ip;
+        sshUser = "buildfarm";
+        sshKey = sshPrivateKeyPath;
+        system = "x86_64-linux";
+        maxJobs = 1;
+      };
+      in builtins.map f buildSlaveInfo;
+
+    distributedBuilds = true;
+
+    extraOptions = ''
+      connect-timeout = 5
+    '';
+
+    binaryCachePublicKeys = builtins.map
+      ({ nixstorePubkey, ... }: nixstorePubkey) buildSlaveInfo;
+    binaryCaches = [ "https://cache.nixos.org/" ]
+      ++ (builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo);
+    trustedBinaryCaches = builtins.map
+      ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo;
+  };
+
+  programs.ssh.extraConfig = ''
+    Host 10.8.0.*
+      User buildfarm
+      IdentityFile ${sshPrivateKeyPath}
+      ConnectTimeout 5
+  '';
+
   services.openvpn.servers.server = {
     config = ''
       port ${builtins.toString openvpnPort}
@@ -49,34 +87,5 @@ in {
       mkdir -p /root/.ssh
       cp ${knownHostsFile} /root/.ssh/known_hosts
     fi
-  '';
-
-  nix = {
-    buildMachines = let
-      f = { ip, ...}: {
-        hostName = ip;
-        sshUser = "buildfarm";
-        sshKey = sshPrivateKeyPath;
-        system = "x86_64-linux";
-        maxJobs = 1;
-      };
-      in builtins.map f buildSlaveInfo;
-
-    distributedBuilds = true;
-
-    extraOptions = ''
-      connect-timeout = 5
-    '';
-
-    binaryCachePublicKeys = builtins.map ({ nixstorePubkey, ... }: nixstorePubkey) buildSlaveInfo;
-    binaryCaches = [ "https://cache.nixos.org/" ] ++ (builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo);
-    trustedBinaryCaches = builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo;
-  };
-
-  programs.ssh.extraConfig = ''
-    Host 10.8.0.*
-      User buildfarm
-      IdentityFile ${sshPrivateKeyPath}
-      ConnectTimeout 5
   '';
 }

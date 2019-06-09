@@ -14,8 +14,10 @@
 { pkgs, config, ... }:
 
 {
-  networking.firewall.allowedUDPPorts = [ 22 openvpnPort ];
-  networking.firewall.trustedInterfaces = [ "tun0" ];
+  networking.firewall = {
+    allowedUDPPorts = [ 22 openvpnPort ];
+    trustedInterfaces = [ "tun0" ];
+  };
 
   nix = {
     extraOptions = ''
@@ -27,26 +29,27 @@
       keys = [ sshMasterPubKeyContent ];
       protocol = "ssh-ng";
     };
-
   };
 
-  services.openvpn.servers.client = {
-    config = ''
-      client
-      float
-      dev tun
-      proto udp
-      remote ${remoteHost} ${builtins.toString openvpnPort}
-      remote-cert-tls server
+  services = {
+    openvpn.servers.client = {
+      config = ''
+        client
+        float
+        dev tun
+        proto udp
+        remote ${remoteHost} ${builtins.toString openvpnPort}
+        remote-cert-tls server
 
-      ca ${vpnCAPath}
-      cert ${vpnCertificatePath}
-      key ${vpnKeyfilePath}
-    '';
-  };
-  services.openssh = {
-    enable = true;
-    hostKeys = [ { type = "rsa"; bits = 4096; path = "/etc/ssh/ssh_host_rsa_key"; } ];
+        ca ${vpnCAPath}
+        cert ${vpnCertificatePath}
+        key ${vpnKeyfilePath}
+      '';
+    };
+    openssh = {
+      enable = true;
+      hostKeys = [ { type = "rsa"; bits = 4096; path = "/etc/ssh/ssh_host_rsa_key"; } ];
+    };
   };
 
   # We force this in, because the pre-existing preStart script generates
