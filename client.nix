@@ -1,14 +1,15 @@
 {
   openvpnPort ? 1194,
-  remoteHost,
-  remoteName,
+  openvpnHost,
   vpnCAPath,
   vpnCertificatePath,
-  vpnKeyfilePath,
+  vpnKeyPath,
   sshMasterPubKeyContent,
   sshPrivateKeyPath,
   sshPublicKeyPath,
-  nixstorePrivateKeyPath
+  nixstorePrivateKeyPath,
+  secrets,
+  ...
 }:
 
 { pkgs, config, ... }:
@@ -38,12 +39,12 @@
         float
         dev tun
         proto udp
-        remote ${remoteHost} ${builtins.toString openvpnPort}
+        remote ${openvpnHost} ${builtins.toString openvpnPort}
         remote-cert-tls server
 
         ca ${vpnCAPath}
         cert ${vpnCertificatePath}
-        key ${vpnKeyfilePath}
+        key ${vpnKeyPath}
       '';
     };
     openssh = {

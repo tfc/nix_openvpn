@@ -5,20 +5,20 @@
   vpnKeyfilePath,
   vpnDiffieHellmanFilePath,
   sshPrivateKeyPath,
-  buildSlaveInfo
+  buildSlaves
 }:
 
 { pkgs, config, ... }:
 
 let
   ippFile = pkgs.writeText "ipp.txt" (pkgs.lib.concatMapStringsSep "\n"
-    ({name, ip, ...}: "${name},${ip}") buildSlaveInfo);
+    ({name, ip, ...}: "${name},${ip}") buildSlaves);
 in {
   networking = {
     firewall.allowedUDPPorts = [ openvpnPort ];
-    hosts = {
-      "10.8.0.2" = [ "openvpn_client1" ];
-    };
+    hosts = builtins.listToAttrs (
+      builtins.map (node: pkgs.lib.nameValuePair node.ip [ node.name ]) buildSlaves
+    );
   };
 
   nix = {
@@ -30,7 +30,7 @@ in {
         system = "x86_64-linux";
         maxJobs = 1;
       };
-      in builtins.map f buildSlaveInfo;
+      in builtins.map f buildSlaves;
 
     distributedBuilds = true;
 
@@ -39,11 +39,11 @@ in {
     '';
 
     binaryCachePublicKeys = builtins.map
-      ({ nixstorePubkey, ... }: nixstorePubkey) buildSlaveInfo;
+      ({ nixstorePubkey, ... }: nixstorePubkey) buildSlaves;
     binaryCaches = [ "https://cache.nixos.org/" ]
-      ++ (builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo);
+      ++ (builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaves);
     trustedBinaryCaches = builtins.map
-      ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo;
+      ({ ip, ... }: "ssh-ng://${ip}") buildSlaves;
   };
 
   programs.ssh.extraConfig = ''
@@ -54,10 +54,10 @@ in {
   '';
 
   programs.ssh.knownHosts = let
-    f = { ip, name, pubkey, ...}: pkgs.lib.nameValuePair
+    f = { ip, name, sshPublicKey, ...}: pkgs.lib.nameValuePair
       name
-      { hostNames = [ ip name ]; publicKey = pubkey; };
-  in builtins.listToAttrs (builtins.map f buildSlaveInfo);
+      { hostNames = [ ip name ]; publicKey = sshPublicKey; };
+  in builtins.listToAttrs (builtins.map f buildSlaves);
 
   services.openvpn.servers.server = {
     config = ''

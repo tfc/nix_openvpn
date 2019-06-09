@@ -1,15 +1,16 @@
 let
-  clientArguments = prefix: {
-    remoteHost = "server";
-    remoteName = "openvpn_server";
-    vpnCAPath = ../keys_certificates/pki/ca.crt;
-    vpnCertificatePath = ../keys_certificates/pki/issued + "/${prefix}.crt";
-    vpnKeyfilePath = "/run/keys/vpn-key";
+  pkgs = import <nixpkgs> {};
+  buildSlaves = import ../clientattributes.nix pkgs "10.8.0.";
+  clientArguments = client: client // {
+    openvpnPort = 1194;
+    openvpnHost = "server";
     sshMasterPubKeyContent = builtins.readFile ../keys_certificates/ssh_keys/openvpn_server.pub;
+
+    vpnKeyPath = "/run/keys/vpn-key";
     sshPrivateKeyPath = "/run/keys/ssh-private";
-    sshPublicKeyPath = ../keys_certificates/ssh_keys + "/${prefix}.pub";
     nixstorePrivateKeyPath = "/run/keys/nixstore-private";
   };
+  buildSlaveConfigs = builtins.map clientArguments buildSlaves;
 in {
   network.description = "Nix hydra server and build slaves";
 
@@ -19,17 +20,12 @@ in {
     vpnKeyfilePath = "/run/keys/vpn-key";
     vpnDiffieHellmanFilePath = "/run/keys/dh-params";
     sshPrivateKeyPath = "/run/keys/sshkey-buildfarm";
-    buildSlaveInfo = let
-      f = ip: name: {
-        inherit ip name;
-        pubkey = builtins.readFile (../keys_certificates/ssh_keys + "/${name}.pub");
-        nixstorePubkey = builtins.readFile (../keys_certificates/nixstore_keys + "/${name}-pub.pem");
-      };
-    in [
-      (f "10.8.0.2" "openvpn_client1")
-      (f "10.8.0.3" "openvpn_client2")
-    ];
+    inherit buildSlaves;
   };
-  client1 = import ../client.nix (clientArguments "openvpn_client1");
-  client2 = import ../client.nix (clientArguments "openvpn_client2");
-}
+} // (
+  builtins.listToAttrs (
+    pkgs.lib.flip builtins.map (builtins.map clientArguments buildSlaves) (
+      node: pkgs.lib.nameValuePair node.name (import ../client.nix node)
+    )
+  )
+)

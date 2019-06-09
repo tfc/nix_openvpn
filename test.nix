@@ -15,16 +15,15 @@ let
         args = [ "-c" "cat /proc/sys/kernel/hostname > $out" ];
       }
     '';
-  clientArguments = prefix: {
-    remoteHost = "server";
-    remoteName = "openvpn_server";
-    vpnCAPath = ./keys_certificates/pki/ca.crt;
-    vpnCertificatePath = ./keys_certificates/pki/issued + "/${prefix}.crt";
-    vpnKeyfilePath = ./keys_certificates/pki/private + "/${prefix}.key";
+  buildSlaves = import ./clientattributes.nix pkgs "10.8.0.";
+  clientArguments = client: client // {
+    openvpnPort = 1194;
+    openvpnHost = "server";
     sshMasterPubKeyContent = builtins.readFile ./keys_certificates/ssh_keys/openvpn_server.pub;
-    sshPrivateKeyPath = ./keys_certificates/ssh_keys + "/${prefix}";
-    sshPublicKeyPath = ./keys_certificates/ssh_keys + "/${prefix}.pub";
-    nixstorePrivateKeyPath = ./keys_certificates/nixstore_keys + "/${prefix}-priv.pem";
+
+    nixstorePrivateKeyPath = pkgs.writeText "nixstore-private.pem" client.secrets.nixstorePrivateKey;
+    sshPrivateKeyPath = pkgs.writeText "ssh-private.key" client.secrets.sshPrivateKey;
+    vpnKeyPath = pkgs.writeText "vpn.key" client.secrets.vpnKey;
   };
   f = { pkgs, ...}: {
     name = "openvpn_test";
@@ -35,19 +34,11 @@ let
         vpnKeyfilePath = ./keys_certificates/pki/private/openvpn_server.key;
         vpnDiffieHellmanFilePath = ./keys_certificates/pki/dh.pem;
         sshPrivateKeyPath = "/root/openvpn_server";
-        buildSlaveInfo = let
-          f = ip: name: {
-            inherit ip name;
-            pubkey = builtins.readFile (./keys_certificates/ssh_keys + "/${name}.pub");
-            nixstorePubkey = builtins.readFile (./keys_certificates/nixstore_keys + "/${name}-pub.pem");
-          };
-        in [
-          (f "10.8.0.2" "openvpn_client1")
-          (f "10.8.0.3" "openvpn_client2")
-        ];
+        inherit buildSlaves;
       };
-      client1 = import ./client.nix (clientArguments "openvpn_client1");
-      client2 = import ./client.nix (clientArguments "openvpn_client2");
+      # TODO: Generate this list of clients completely from buildSlaves attrset
+      client1 = import ./client.nix (clientArguments (builtins.elemAt buildSlaves 0));
+      client2 = import ./client.nix (clientArguments (builtins.elemAt buildSlaves 1));
     };
 
     testScript = { nodes, ... }: ''
