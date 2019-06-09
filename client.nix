@@ -7,7 +7,8 @@
   vpnKeyfilePath,
   sshMasterPubKeyContent,
   sshPrivateKeyPath,
-  sshPublicKeyPath
+  sshPublicKeyPath,
+  nixstorePrivateKeyPath
 }:
 
 { pkgs, config, ... }:
@@ -16,7 +17,18 @@
   networking.firewall.allowedUDPPorts = [ 22 openvpnPort ];
   networking.firewall.trustedInterfaces = [ "tun0" ];
 
-  nix.trustedUsers = [ "buildfarm" ];
+  nix = {
+    extraOptions = ''
+      secret-key-files = ${nixstorePrivateKeyPath}
+    '';
+    trustedUsers = [ "buildfarm" ];
+    sshServe = {
+      enable = true;
+      keys = [ sshMasterPubKeyContent ];
+      protocol = "ssh-ng";
+    };
+
+  };
 
   services.openvpn.servers.client = {
     config = ''

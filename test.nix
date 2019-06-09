@@ -24,6 +24,7 @@ let
     sshMasterPubKeyContent = builtins.readFile ./keys_certificates/ssh_keys/openvpn_server.pub;
     sshPrivateKeyPath = ./keys_certificates/ssh_keys + "/${prefix}";
     sshPublicKeyPath = ./keys_certificates/ssh_keys + "/${prefix}.pub";
+    nixstorePrivateKeyPath = ./keys_certificates/nixstore_keys + "/${prefix}-priv.pem";
   };
   f = { pkgs, ...}: {
     name = "openvpn_test";
@@ -34,9 +35,15 @@ let
         vpnKeyfilePath = ./keys_certificates/pki/private/openvpn_server.key;
         vpnDiffieHellmanFilePath = ./keys_certificates/pki/dh.pem;
         sshPrivateKeyPath = "/root/openvpn_server";
-        buildSlaveInfo = [
-          { ip = "10.8.0.2"; name = "openvpn_client1"; pubkey = builtins.readFile ./keys_certificates/ssh_keys/openvpn_client1.pub; }
-          { ip = "10.8.0.3"; name = "openvpn_client2"; pubkey = builtins.readFile ./keys_certificates/ssh_keys/openvpn_client2.pub; }
+        buildSlaveInfo = let
+          f = ip: name: {
+            inherit ip name;
+            pubkey = builtins.readFile (./keys_certificates/ssh_keys + "/${name}.pub");
+            nixstorePubkey = builtins.readFile (./keys_certificates/nixstore_keys + "/${name}-pub.pem");
+          };
+        in [
+          (f "10.8.0.2" "openvpn_client1")
+          (f "10.8.0.3" "openvpn_client2")
         ];
       };
       client1 = import ./client.nix (clientArguments "openvpn_client1");
@@ -46,13 +53,14 @@ let
     testScript = { nodes, ... }: ''
       $server->start();
       $server->waitForUnit("openvpn-server.service");
-      $server->succeed("sleep 1 && ifconfig tun0");
+      $server->waitUntilSucceeds("ifconfig tun0");
       $server->succeed("cp ${./. + "/keys_certificates/ssh_keys/openvpn_server"} /root/openvpn_server && chmod 0400 /root/openvpn_server");
 
       $client1->start();
       $client1->waitForUnit("openvpn-client.service");
+      $client1->waitForUnit("sshd.service");
+      $client1->waitUntilSucceeds("ifconfig tun0");
 
-      $client1->succeed("sleep 1 && ifconfig tun0");
       $server->succeed("ping -c1 10.8.0.2");
       $client1->succeed("ping -c1 10.8.0.1");
 
@@ -60,13 +68,16 @@ let
 
       $client2->start();
       $client2->waitForUnit("openvpn-client.service");
-      $client2->succeed("sleep 1 && ifconfig tun0");
+      $client2->waitForUnit("sshd.service");
+      $client2->waitUntilSucceeds("ifconfig tun0");
       $server->succeed("ping -c1 10.8.0.3");
       $client2->succeed("ping -c1 10.8.0.1");
 
-      print($server->succeed("nix-build -j0 ${trivialHostnameDerivation nodes.server.config "foo"}"));
-      $client1->block;
-      print($server->succeed("nix-build -j0 ${trivialHostnameDerivation nodes.server.config "bar"}"));
+      my $out = $client1->succeed("nix-build --no-out-link ${trivialHostnameDerivation nodes.server.config "foo"} 2> /dev/null");
+      $server->succeed("nix-store -vvv --realize $out");
+
+      #$client1->block;
+      #print($server->succeed("nix-build --no-out-link -j0 ${trivialHostnameDerivation nodes.server.config "bar"}"));
     '';
   };
 in import "${pkgs.path}/nixos/tests/make-test.nix" f {}

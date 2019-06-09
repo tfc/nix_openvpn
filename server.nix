@@ -51,18 +51,27 @@ in {
     fi
   '';
 
-  nix.buildMachines = let
-    f = { ip, ...}: {
-      hostName = ip;
-      sshUser = "buildfarm";
-      sshKey = sshPrivateKeyPath;
-      system = "x86_64-linux";
-      maxJobs = 1;
+  nix = {
+    buildMachines = let
+      f = { ip, ...}: {
+        hostName = ip;
+        sshUser = "buildfarm";
+        sshKey = sshPrivateKeyPath;
+        system = "x86_64-linux";
+        maxJobs = 1;
+      };
+      in builtins.map f buildSlaveInfo;
 
-    };
-  in builtins.map f buildSlaveInfo;
+    distributedBuilds = true;
 
-  nix.distributedBuilds = true;
+    extraOptions = ''
+      connect-timeout = 5
+    '';
+
+    binaryCachePublicKeys = builtins.map ({ nixstorePubkey, ... }: nixstorePubkey) buildSlaveInfo;
+    binaryCaches = [ "https://cache.nixos.org/" ] ++ (builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo);
+    trustedBinaryCaches = builtins.map ({ ip, ... }: "ssh-ng://${ip}") buildSlaveInfo;
+  };
 
   programs.ssh.extraConfig = ''
     Host 10.8.0.*

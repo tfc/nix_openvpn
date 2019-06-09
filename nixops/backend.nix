@@ -1,15 +1,18 @@
 let
-  rootOnlyKey = file: {
+  userOnlyKey = user: file: {
     text = builtins.readFile file;
-    user = "root";
-    group = "root";
+    user = user;
     permissions = "0400";
   };
+  rootOnlyKey = userOnlyKey "root";
+  buildfarmOnlyKey = userOnlyKey "buildfarm";
+
   clientConfig = prefix: { config, pkgs, ... }: {
     deployment.targetEnv = "libvirtd";
     deployment.keys = {
       vpn-key = rootOnlyKey (../keys_certificates/pki/private + "/${prefix}.key");
       ssh-private = rootOnlyKey (../keys_certificates/ssh_keys + "/${prefix}");
+      nixstore-private = buildfarmOnlyKey (../keys_certificates/nixstore_keys + "/${prefix}-priv.pem");
     };
   };
 in {
