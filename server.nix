@@ -59,27 +59,37 @@ in {
       { hostNames = [ ip name ]; publicKey = sshPublicKey; };
   in builtins.listToAttrs (builtins.map f buildSlaves);
 
-  services.openvpn.servers.server = {
-    config = ''
-      port ${builtins.toString openvpnPort}
-      proto udp
-      mode server
-      tls-server
-      dev tun
+  services = {
+    hydra = {
+      enable = true;
+      hydraURL = "http://localhost:3000";
+      notificationSender = "jacek@galowicz.de";
+      useSubstitutes = true;
+    };
+    openssh.enable = true;
 
-      topology subnet
-      ifconfig 10.8.0.1 255.255.255.0
-      ifconfig-pool 10.8.0.2 10.8.0.200
-      ifconfig-pool-persist /root/ipp.txt
-      push "route 10.8.0.0 255.255.255.0"
+    openvpn.servers.server = {
+      config = ''
+        port ${builtins.toString openvpnPort}
+        proto udp
+        mode server
+        tls-server
+        dev tun
 
-      ca ${vpnCAPath}
-      cert ${vpnCertificatePath}
-      key ${vpnKeyfilePath}
-      dh ${vpnDiffieHellmanFilePath}
+        topology subnet
+        ifconfig 10.8.0.1 255.255.255.0
+        ifconfig-pool 10.8.0.2 10.8.0.200
+        ifconfig-pool-persist /root/ipp.txt
+        push "route 10.8.0.0 255.255.255.0"
 
-      keepalive 10 120
-    '';
+        ca ${vpnCAPath}
+        cert ${vpnCertificatePath}
+        key ${vpnKeyfilePath}
+        dh ${vpnDiffieHellmanFilePath}
+
+        keepalive 10 120
+      '';
+    };
   };
 
   systemd.services.openvpn-server.preStart = ''
