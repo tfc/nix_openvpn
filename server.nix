@@ -16,6 +16,9 @@ let
 in {
   networking = {
     firewall.allowedUDPPorts = [ openvpnPort ];
+    firewall.allowedTCPPorts = [
+      9090 # prometheus
+    ];
     hosts = builtins.listToAttrs (
       builtins.map (node: pkgs.lib.nameValuePair node.ip [ node.name ]) buildSlaves
     );
@@ -67,7 +70,6 @@ in {
       useSubstitutes = true;
     };
     openssh.enable = true;
-
     openvpn.servers.server = {
       config = ''
         port ${builtins.toString openvpnPort}
@@ -89,6 +91,18 @@ in {
 
         keepalive 10 120
       '';
+    };
+    prometheus = {
+      enable = true;
+      scrapeConfigs = [{
+        job_name = "buildfarm";
+        static_configs = let
+          f = { ip, name, ...}: {
+            targets = [ "${ip}:9100" ];
+            labels = { instance = name; };
+          };
+        in builtins.map f buildSlaves;
+      }];
     };
   };
 

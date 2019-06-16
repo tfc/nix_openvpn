@@ -51,6 +51,10 @@
       enable = true;
       hostKeys = [ { type = "rsa"; bits = 4096; path = "/etc/ssh/ssh_host_rsa_key"; } ];
     };
+    prometheus.exporters.node = {
+      enable = true;
+      openFirewall = true;
+    };
   };
 
   # We force this in, because the pre-existing preStart script generates
